@@ -1,7 +1,7 @@
-import { Collection, Db, ObjectId, WithId } from 'mongodb';
+import { Collection, Db, ObjectId, WithId, Document } from 'mongodb';
 import { connectToDatabase } from '../mongodb';
 
-export interface BaseDocument {
+export interface BaseDocument extends Document {
   _id?: ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
@@ -25,21 +25,24 @@ export class BaseDAO<T extends BaseDocument> {
   async findById(id: string | ObjectId): Promise<T | null> {
     const collection = await this.getCollection();
     const _id = typeof id === 'string' ? new ObjectId(id) : id;
-    return collection.findOne({ _id } as any) as Promise<T | null>;
+    const result = await collection.findOne<T>({ _id } as any);
+    return result ? (result as unknown as T) : null;
   }
 
   async findOne(query: Partial<T>): Promise<T | null> {
     const collection = await this.getCollection();
-    return collection.findOne(query as any) as Promise<T | null>;
+    const result = await collection.findOne<T>(query as any);
+    return result ? (result as unknown as T) : null;
   }
 
   async find(query: Partial<T>, options?: { limit?: number; skip?: number }): Promise<T[]> {
     const collection = await this.getCollection();
-    return collection
-      .find(query as any)
+    const cursor = collection.find<T>(query as any)
       .skip(options?.skip || 0)
-      .limit(options?.limit || 0)
-      .toArray() as Promise<T[]>;
+      .limit(options?.limit || 0);
+      
+    const results = await cursor.toArray();
+    return results as unknown as T[];
   }
 
   async create(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<T> {
@@ -52,7 +55,7 @@ export class BaseDAO<T extends BaseDocument> {
     };
 
     const result = await collection.insertOne(documentToInsert as any);
-    return { ...documentToInsert, _id: result.insertedId } as T;
+    return { ...documentToInsert, _id: result.insertedId } as unknown as T;
   }
 
   async update(id: string | ObjectId, data: Partial<T>): Promise<T | null> {
@@ -70,7 +73,7 @@ export class BaseDAO<T extends BaseDocument> {
       { returnDocument: 'after' }
     );
 
-    return result as unknown as T;
+    return result ? (result as unknown as T) : null;
   }
 
   async delete(id: string | ObjectId): Promise<boolean> {
