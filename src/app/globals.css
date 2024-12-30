@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 100%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 25%;
+    --accent-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --ring: 0 0% 30%;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    @apply bg-black text-white;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  a {
+    @apply text-white hover:text-white/80;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-zinc-900 border border-zinc-800 rounded-xl p-4
+           transition-all duration-200;
+  }
+
+  .button {
+    @apply bg-gradient-to-r from-zinc-400 via-zinc-500 to-zinc-600 text-white;
+  }
+
+  .button:hover {
+    @apply from-zinc-500 via-zinc-600 to-zinc-700;
+  }
+
+  .submit-button {
+    @apply bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white;
+  }
+
+  .submit-button:hover {
+    @apply from-blue-700 via-indigo-700 to-purple-700;
+  }
+
+  .nav-link {
+    @apply flex flex-col items-center justify-center text-zinc-400 hover:text-zinc-200 transition-colors;
+  }
+
+  .nav-link.active {
+    @apply text-zinc-200;
+  }
+
+  .bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 bg-zinc-900/80 backdrop-blur-lg border-t border-zinc-800 px-6 py-2 flex items-center justify-around;
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0.5rem);
+  }
+
+  .tag {
+    @apply px-2 py-1 text-xs rounded-md bg-zinc-800 text-zinc-300 
+           border border-zinc-700;
+  }
+
+  .priority-low {
+    @apply bg-zinc-900/30 text-zinc-200;
+  }
+
+  .priority-medium {
+    @apply bg-zinc-900/30 text-zinc-200;
+  }
+
+  .priority-high {
+    @apply bg-zinc-900/30 text-zinc-200;
+  }
+
+  input[type="text"], textarea {
+    @apply bg-zinc-900/30 text-zinc-200;
+  }
+}

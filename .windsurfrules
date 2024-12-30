@@ -1,0 +1,87 @@
+General Rules
+Code Documentation:
+
+Write clear, concise, and relevant comments for each function and major logic block.
+Include JSDoc comments for all functions and methods, detailing inputs, outputs, and the function's purpose.
+Provide examples for API routes and key functionalities where applicable.
+Code Structure and Readability:
+
+Use descriptive variable and function names that convey purpose.
+Organize the code into small, reusable functions or components, following the Single Responsibility Principle (SRP).
+Use consistent indentation and spacing for all files.
+Error Handling:
+
+Always handle errors gracefully with meaningful messages.
+Return structured error responses in the backend API (e.g., JSON format with code and message fields).
+Validate all user inputs to prevent unexpected behavior.
+Best Practices:
+
+Follow the principles of clean code and avoid hardcoding values.
+Use environment variables for sensitive or configurable data (e.g., API keys, database URLs).
+Modularize code: separate concerns into distinct files (e.g., routes, controllers, database models).
+Testing and Debugging:
+
+Write unit tests for critical functions using a testing library like Jest or Mocha.
+Include logs for debugging but remove or disable them in production.
+Test edge cases for all user inputs and GPT responses.
+Frontend Development Rules
+Component Design:
+
+Use functional components and React Hooks where applicable.
+Split the UI into smaller, reusable components.
+Pass props clearly, avoiding deeply nested props by leveraging context or state management.
+Styling:
+
+Use a consistent design system (e.g., TailwindCSS) to ensure cohesive styling.
+Avoid inline styles; define reusable classes or use CSS modules.
+State Management:
+
+Use React Context API or Redux for app-wide state management.
+Keep local state within components where appropriate.
+Responsiveness:
+
+Ensure the app is mobile-first and scales well on various screen sizes.
+Test touch-based interactions like swiping or dragging.
+Backend Development Rules
+API Design:
+
+Follow RESTful API conventions (e.g., use verbs like GET, POST, PUT, DELETE).
+Use versioning in your API endpoints (e.g., /api/v1/tasks).
+Database Management:
+
+Use Mongoose or another ORM for MongoDB for structured and maintainable database interactions.
+Ensure schema validation for database models.
+Authentication and Security:
+
+Use secure authentication methods (e.g., JWT or OAuth2).
+Sanitize all user inputs to prevent security vulnerabilities like SQL injection or XSS.
+Scalability:
+
+Design APIs and database schemas to handle future feature expansions.
+Use pagination for API endpoints that return lists of data.
+AI Integration Rules
+Prompt Design:
+
+Write prompts in a structured format, specifying inputs, outputs, and desired behaviors for the AI.
+Include examples in the prompt to improve GPT’s response accuracy.
+Output Handling:
+
+Parse AI responses to ensure they match the expected schema before saving them to the database.
+Log invalid responses for debugging and future optimization.
+Efficiency:
+
+Minimize API calls to OpenAI by batching requests where possible.
+Cache frequent or predictable responses to reduce API usage.
+Project-Wide Rules
+Git Practices:
+
+Commit frequently with meaningful messages (e.g., Add GPT integration for task creation).
+Use feature branches for new functionalities and merge only after code review.
+Continuous Improvement:
+
+Regularly refactor code to maintain clarity and performance.
+Document any technical debt or TODOs clearly in the codebase.
+Developer Experience:
+
+Provide setup instructions in a README.md file, including prerequisites and installation steps.
+Include comments or notes to help collaborators understand complex logic.
