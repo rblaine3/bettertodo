@@ -1,7 +1,13 @@
-import { Collection, Db, ObjectId } from 'mongodb';
+import { Collection, Db, ObjectId, WithId } from 'mongodb';
 import { connectToDatabase } from '../mongodb';
 
-export class BaseDAO<T> {
+export interface BaseDocument {
+  _id?: ObjectId;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export class BaseDAO<T extends BaseDocument> {
   protected collection: string;
   protected db: Db | null = null;
 
@@ -19,31 +25,31 @@ export class BaseDAO<T> {
   async findById(id: string | ObjectId): Promise<T | null> {
     const collection = await this.getCollection();
     const _id = typeof id === 'string' ? new ObjectId(id) : id;
-    return collection.findOne({ _id });
+    return collection.findOne({ _id } as any) as Promise<T | null>;
   }
 
   async findOne(query: Partial<T>): Promise<T | null> {
     const collection = await this.getCollection();
-    return collection.findOne(query);
+    return collection.findOne(query as any) as Promise<T | null>;
   }
 
   async find(query: Partial<T>, options?: { limit?: number; skip?: number }): Promise<T[]> {
     const collection = await this.getCollection();
     return collection
-      .find(query)
+      .find(query as any)
       .skip(options?.skip || 0)
       .limit(options?.limit || 0)
-      .toArray();
+      .toArray() as Promise<T[]>;
   }
 
-  async create(data: Omit<T, '_id'>): Promise<T> {
+  async create(data: Omit<T, '_id' | 'createdAt' | 'updatedAt'>): Promise<T> {
     const collection = await this.getCollection();
     const now = new Date();
     const documentToInsert = {
       ...data,
       createdAt: now,
       updatedAt: now,
-    } as T;
+    };
 
     const result = await collection.insertOne(documentToInsert as any);
     return { ...documentToInsert, _id: result.insertedId } as T;
@@ -53,24 +59,24 @@ export class BaseDAO<T> {
     const collection = await this.getCollection();
     const _id = typeof id === 'string' ? new ObjectId(id) : id;
     
+    const updateData = {
+      ...data,
+      updatedAt: new Date(),
+    };
+
     const result = await collection.findOneAndUpdate(
-      { _id },
-      { 
-        $set: { 
-          ...data,
-          updatedAt: new Date()
-        }
-      },
+      { _id } as any,
+      { $set: updateData },
       { returnDocument: 'after' }
     );
 
-    return result.value;
+    return result as unknown as T;
   }
 
   async delete(id: string | ObjectId): Promise<boolean> {
     const collection = await this.getCollection();
     const _id = typeof id === 'string' ? new ObjectId(id) : id;
-    const result = await collection.deleteOne({ _id });
+    const result = await collection.deleteOne({ _id } as any);
     return result.deletedCount === 1;
   }
 }
