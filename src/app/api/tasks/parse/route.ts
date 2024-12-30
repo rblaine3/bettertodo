@@ -117,7 +117,12 @@ ${input}`
   ]);
 
   try {
-    const parsed = JSON.parse(response.content);
+    // Handle both string and complex message content
+    const content = typeof response.content === 'string' 
+      ? response.content 
+      : response.content.map(c => typeof c === 'string' ? c : c.text).join('');
+      
+    const parsed = JSON.parse(content);
     const result = tasksResponseSchema.parse(parsed);
 
     // Validate and adjust dates if needed
