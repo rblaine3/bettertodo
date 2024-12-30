@@ -1,9 +1,9 @@
 {
-  "/tasks/[taskId]/page": "app/tasks/[taskId]/page.js",
-  "/chat/page": "app/chat/page.js",
   "/tasks/create/page": "app/tasks/create/page.js",
-  "/api/tasks/[taskId]/route": "app/api/tasks/[taskId]/route.js",
-  "/tasks/page": "app/tasks/page.js",
   "/calendar/page": "app/calendar/page.js",
+  "/tasks/page": "app/tasks/page.js",
+  "/chat/page": "app/chat/page.js",
+  "/tasks/[taskId]/page": "app/tasks/[taskId]/page.js",
+  "/api/tasks/parse/route": "app/api/tasks/parse/route.js",
   "/api/tasks/route": "app/api/tasks/route.js"
 }
