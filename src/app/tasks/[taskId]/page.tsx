@@ -13,6 +13,7 @@ interface Task {
   dueTime?: string;
   notes?: string;
   subTasks?: { 
+    _id: string;
     title: string; 
     status: 'not_started' | 'in_progress' | 'completed';
     dueDate?: string;
@@ -170,6 +171,21 @@ export default function TaskDetailPage() {
     }
   };
 
+  const deleteSubTask = async (subtaskId: string) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/subtasks/${subtaskId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Failed to delete subtask');
+
+      const updatedTask = await response.json();
+      setTask(updatedTask);
+    } catch (err: any) {
+      console.error('Error deleting subtask:', err);
+    }
+  };
+
   const updateTaskStatus = async (status: Task['status']) => {
     try {
       const response = await fetch(`/api/tasks/${taskId}`, {
@@ -280,12 +296,16 @@ export default function TaskDetailPage() {
         method: 'POST',
       });
       
-      if (!response.ok) throw new Error('Failed to generate subtasks');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate subtasks');
+      }
       
       const updatedTask = await response.json();
       setTask(updatedTask);
     } catch (err: any) {
       console.error('Error generating subtasks:', err);
+      alert('Failed to generate subtasks: ' + err.message);
     } finally {
       setIsGeneratingSubtasks(false);
     }
@@ -412,7 +432,7 @@ export default function TaskDetailPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-4">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
                 <h3 className="text-2xl font-bold">Subtasks</h3>
               </div>
@@ -420,11 +440,11 @@ export default function TaskDetailPage() {
                 <button
                   onClick={generateSubtasks}
                   disabled={isGeneratingSubtasks}
-                  className="flex items-center space-x-4 px-4 py-2 bg-emerald-600/20 text-emerald-400 rounded-lg hover:bg-emerald-600/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600/20 text-emerald-400 text-sm rounded-lg hover:bg-emerald-600/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isGeneratingSubtasks ? (
                     <>
-                      <svg className="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
@@ -432,7 +452,7 @@ export default function TaskDetailPage() {
                     </>
                   ) : (
                     <>
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
                       <span>Generate with GPT</span>
@@ -449,46 +469,39 @@ export default function TaskDetailPage() {
               </div>
             ) : (
               <div className="bg-zinc-800/30 rounded-lg overflow-hidden">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-zinc-700/50">
-                      <th className="px-6 py-4 text-left text-lg font-medium text-zinc-400 w-[150px]">Status</th>
-                      <th className="px-6 py-4 text-left text-lg font-medium text-zinc-400">Title</th>
-                      <th className="px-6 py-4 text-left text-lg font-medium text-zinc-400 w-[320px]">Due Date/Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {task.subTasks?.map((subtask) => (
-                      <tr key={subtask.createdAt} className="border-b border-zinc-700/30 last:border-0 group">
-                        <td className="px-6 py-5">
+                <div className="divide-y divide-zinc-700/30">
+                  {task.subTasks?.map((subtask) => (
+                    <div key={subtask._id} className="group">
+                      <div className="flex items-center px-4 py-3">
+                        <div className="flex-none w-32">
                           <select
                             value={subtask.status}
-                            onChange={(e) => updateSubTaskStatus(subtask.createdAt, e.target.value as 'not_started' | 'in_progress' | 'completed')}
-                            className="w-full bg-transparent border-0 focus:ring-0 text-lg cursor-pointer group-hover:text-white transition-colors"
+                            onChange={(e) => updateSubTaskStatus(subtask._id, e.target.value as 'not_started' | 'in_progress' | 'completed')}
+                            className="w-full bg-transparent border-0 focus:ring-0 text-sm cursor-pointer group-hover:text-white transition-colors"
                           >
                             <option value="not_started" className="bg-zinc-800">Not Started</option>
                             <option value="in_progress" className="bg-zinc-800">In Progress</option>
                             <option value="completed" className="bg-zinc-800">Completed</option>
                           </select>
-                        </td>
-                        <td className="px-6 py-5">
-                          {editingSubtaskId === subtask.createdAt ? (
+                        </div>
+                        <div className="flex-1 min-w-0 px-4">
+                          {editingSubtaskId === subtask._id ? (
                             <input
                               type="text"
                               value={editingSubtaskTitle}
                               onChange={(e) => setEditingSubtaskTitle(e.target.value)}
-                              onBlur={() => updateSubTaskTitle(subtask.createdAt)}
-                              onKeyPress={(e) => e.key === 'Enter' && updateSubTaskTitle(subtask.createdAt)}
-                              className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none"
+                              onBlur={() => updateSubTaskTitle(subtask._id)}
+                              onKeyPress={(e) => e.key === 'Enter' && updateSubTaskTitle(subtask._id)}
+                              className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none text-sm"
                               autoFocus
                             />
                           ) : (
                             <span 
                               onClick={() => {
-                                setEditingSubtaskId(subtask.createdAt);
+                                setEditingSubtaskId(subtask._id);
                                 setEditingSubtaskTitle(subtask.title);
                               }}
-                              className={`cursor-text ${
+                              className={`cursor-text text-sm ${
                                 subtask.status === 'completed' ? 'line-through text-zinc-500' : 
                                 subtask.status === 'in_progress' ? 'text-blue-400' : ''
                               }`}
@@ -496,64 +509,80 @@ export default function TaskDetailPage() {
                               {toTitleCase(subtask.title)}
                             </span>
                           )}
-                        </td>
-                        <td className="px-6 py-5">
-                          <div className="flex items-center gap-4">
-                            <input
-                              type="date"
-                              value={formatDateForInput(subtask.dueDate)}
-                              onChange={(e) => updateSubTaskDateTime(subtask.createdAt, e.target.value || undefined, subtask.dueTime)}
-                              className="bg-transparent border-0 text-lg focus:ring-0 cursor-pointer text-zinc-300 w-40"
-                            />
-                            <input
-                              type="time"
-                              value={formatTimeForInput(subtask.dueTime)}
-                              onChange={(e) => updateSubTaskDateTime(subtask.createdAt, subtask.dueDate, e.target.value || undefined)}
-                              className="bg-transparent border-0 text-lg focus:ring-0 cursor-pointer text-zinc-300 w-32"
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    <tr className="border-t border-zinc-700/30">
-                      <td className="px-6 py-5">
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (confirm('Are you sure you want to delete this subtask?')) {
+                              deleteSubTask(subtask._id);
+                            }
+                          }}
+                          className="flex-none p-1.5 hover:bg-red-500/20 rounded text-zinc-400 hover:text-red-400 transition-colors"
+                          aria-label="Delete subtask"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="flex items-center px-4 py-2 bg-zinc-800/30">
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="date"
+                            value={formatDateForInput(subtask.dueDate)}
+                            onChange={(e) => updateSubTaskDateTime(subtask._id, e.target.value || undefined, subtask.dueTime)}
+                            className="bg-transparent border-0 text-sm focus:ring-0 cursor-pointer text-zinc-300"
+                          />
+                          <input
+                            type="time"
+                            value={formatTimeForInput(subtask.dueTime)}
+                            onChange={(e) => updateSubTaskDateTime(subtask._id, subtask.dueDate, e.target.value || undefined)}
+                            className="bg-transparent border-0 text-sm focus:ring-0 cursor-pointer text-zinc-300"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Add new subtask row */}
+                  <div className="group">
+                    <div className="flex items-center px-4 py-3">
+                      <div className="flex-none w-32">
                         <select
                           value="not_started"
                           disabled
-                          className="w-full bg-transparent border-0 focus:ring-0 text-lg text-zinc-500"
+                          className="w-full bg-transparent border-0 focus:ring-0 text-sm text-zinc-500"
                         >
                           <option value="not_started">Not Started</option>
                         </select>
-                      </td>
-                      <td className="px-6 py-5">
+                      </div>
+                      <div className="flex-1 min-w-0 px-4">
                         <input
                           type="text"
                           value={newSubTask}
                           onChange={(e) => setNewSubTask(e.target.value)}
                           onKeyPress={(e) => e.key === 'Enter' && addSubTask()}
                           placeholder="Add a new subtask..."
-                          className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none placeholder-zinc-600"
+                          className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none placeholder-zinc-600 text-sm"
                         />
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-4">
-                          <input
-                            type="date"
-                            value=""
-                            onChange={(e) => {}}
-                            className="bg-transparent border-0 text-lg focus:ring-0 cursor-pointer text-zinc-300 w-40"
-                          />
-                          <input
-                            type="time"
-                            value=""
-                            onChange={(e) => {}}
-                            className="bg-transparent border-0 text-lg focus:ring-0 cursor-pointer text-zinc-300 w-32"
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                      </div>
+                    </div>
+                    <div className="flex items-center px-4 py-2 bg-zinc-800/30">
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="date"
+                          disabled
+                          value=""
+                          className="bg-transparent border-0 text-sm focus:ring-0 cursor-not-allowed text-zinc-500"
+                        />
+                        <input
+                          type="time"
+                          disabled
+                          value=""
+                          className="bg-transparent border-0 text-sm focus:ring-0 cursor-not-allowed text-zinc-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

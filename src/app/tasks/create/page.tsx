@@ -122,8 +122,8 @@ export default function CreateTaskPage() {
   };
 
   return (
-    <div className="h-full overflow-auto bg-gradient-to-b from-zinc-900 to-black">
-      <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="page-content">
+      <div className="max-w-4xl mx-auto px-4 py-8">
         {mode !== 'review' && (
           <div className="bg-zinc-800/30 rounded-lg p-6 mb-8">
             <h2 className="text-lg text-zinc-300 mb-2">How to Create a Task</h2>
@@ -229,11 +229,11 @@ export default function CreateTaskPage() {
                   </button>
                 </div>
 
-                <div className="flex gap-4">
+                <div className="flex gap-4 flex-wrap">
                   <select
                     value={task.priority || ''}
                     onChange={(e) => handleTaskUpdate(index, 'priority', e.target.value)}
-                    className="bg-zinc-700 text-white rounded px-2 py-1 text-sm"
+                    className="bg-zinc-700 text-white rounded px-2 py-1 text-sm min-w-[100px]"
                   >
                     <option value="">No Priority</option>
                     <option value="low">Low</option>
@@ -242,10 +242,27 @@ export default function CreateTaskPage() {
                   </select>
 
                   <input
-                    type="datetime-local"
-                    value={task.deadline ? new Date(task.deadline).toISOString().slice(0, 16) : ''}
-                    onChange={(e) => handleTaskUpdate(index, 'deadline', e.target.value)}
-                    className="bg-zinc-700 text-white rounded px-2 py-1 text-sm"
+                    type="date"
+                    value={task.deadline ? new Date(task.deadline).toISOString().split('T')[0] : ''}
+                    onChange={(e) => {
+                      const currentDeadline = task.deadline ? new Date(task.deadline) : new Date();
+                      const [year, month, day] = e.target.value.split('-');
+                      currentDeadline.setFullYear(parseInt(year), parseInt(month) - 1, parseInt(day));
+                      handleTaskUpdate(index, 'deadline', currentDeadline.toISOString());
+                    }}
+                    className="bg-zinc-700 text-white rounded px-2 py-1 text-sm min-w-[130px]"
+                  />
+
+                  <input
+                    type="time"
+                    value={task.deadline ? new Date(task.deadline).toTimeString().slice(0, 5) : ''}
+                    onChange={(e) => {
+                      const currentDeadline = task.deadline ? new Date(task.deadline) : new Date();
+                      const [hours, minutes] = e.target.value.split(':');
+                      currentDeadline.setHours(parseInt(hours), parseInt(minutes));
+                      handleTaskUpdate(index, 'deadline', currentDeadline.toISOString());
+                    }}
+                    className="bg-zinc-700 text-white rounded px-2 py-1 text-sm min-w-[100px]"
                   />
                 </div>
 

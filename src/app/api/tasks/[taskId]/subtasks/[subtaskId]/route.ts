@@ -42,19 +42,20 @@ export async function DELETE(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
     
-    const subtaskIndex = task.subTasks.findIndex(
-      (st: any) => st._id.toString() === params.subtaskId
+    // Find and remove the subtask using pull
+    const result = await Task.findByIdAndUpdate(
+      params.taskId,
+      { $pull: { subTasks: { _id: params.subtaskId } } },
+      { new: true }
     );
     
-    if (subtaskIndex === -1) {
-      return NextResponse.json({ error: 'Subtask not found' }, { status: 404 });
+    if (!result) {
+      return NextResponse.json({ error: 'Failed to delete subtask' }, { status: 404 });
     }
     
-    task.subTasks.splice(subtaskIndex, 1);
-    await task.save();
-    
-    return NextResponse.json(task);
+    return NextResponse.json(result);
   } catch (error) {
+    console.error('Error deleting subtask:', error);
     return NextResponse.json({ error: 'Failed to delete subtask' }, { status: 500 });
   }
 }

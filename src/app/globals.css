@@ -14,15 +14,15 @@
     --accent-foreground: 0 0% 100%;
     --border: 0 0% 20%;
     --ring: 0 0% 30%;
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   html, body {
-    height: 100%;
-    overflow: hidden;
+    @apply h-full;
   }
 
   body {
-    @apply bg-black text-white;
+    @apply bg-black text-white overflow-x-hidden;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -88,5 +88,29 @@
 
   input[type="text"], textarea {
     @apply bg-zinc-900/30 text-zinc-200;
+  }
+
+  /* Bottom Navigation */
+  .nav-link {
+    @apply flex flex-col items-center text-zinc-400 hover:text-white transition-colors;
+    min-width: 64px;
+  }
+
+  .nav-link.active {
+    @apply text-white;
+  }
+
+  .pb-safe {
+    padding-bottom: calc(var(--safe-area-inset-bottom) + 80px);
+  }
+
+  .page-content {
+    min-height: calc(100vh - 80px);
+    padding-bottom: 80px;
+  }
+
+  main {
+    min-height: 100%;
+    padding-bottom: calc(64px + var(--safe-area-inset-bottom));
   }
 }

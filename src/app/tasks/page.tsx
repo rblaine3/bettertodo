@@ -18,6 +18,8 @@ export default function TasksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [sortBy, setSortBy] = useState<'dueDate' | 'priority'>('dueDate');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -47,6 +49,53 @@ export default function TasksPage() {
     if (!date) return '';
     const formattedDate = new Date(date).toLocaleDateString();
     return time ? `${formattedDate} at ${time}` : formattedDate;
+  };
+
+  const handleDelete = async (e: React.MouseEvent, taskId: string) => {
+    e.preventDefault(); // Prevent navigation
+    if (!confirm('Are you sure you want to delete this task?')) return;
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Failed to delete task');
+      
+      // Remove task from state
+      setTasks(prev => prev.filter(task => task._id !== taskId));
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      alert('Failed to delete task. Please try again.');
+    }
+  };
+
+  const getSortedTasks = () => {
+    const filteredTasks = selectedStatus === 'all' 
+      ? tasks 
+      : tasks.filter(task => task.status === selectedStatus);
+
+    return filteredTasks.sort((a, b) => {
+      if (sortBy === 'dueDate') {
+        const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+        const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+        return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+      } else {
+        const priorityMap = { high: 3, medium: 2, low: 1 };
+        const priorityA = priorityMap[a.priority];
+        const priorityB = priorityMap[b.priority];
+        return sortDirection === 'asc' ? priorityA - priorityB : priorityB - priorityA;
+      }
+    });
+  };
+
+  const toggleSort = (field: 'dueDate' | 'priority') => {
+    if (sortBy === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortDirection('asc');
+    }
   };
 
   if (isLoading) {
@@ -83,14 +132,14 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="h-full">
+    <div className="min-h-full">
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">Tasks</h1>
           <div className="flex items-center space-x-4">
             <select
               value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value as Task['status'])}
+              onChange={(e) => setSelectedStatus(e.target.value)}
               className="bg-zinc-800/50 text-zinc-300 rounded-lg px-3 py-1.5 text-sm focus:ring-0 focus:outline-none cursor-pointer"
             >
               <option value="all">All Tasks</option>
@@ -99,15 +148,33 @@ export default function TasksPage() {
               <option value="completed">Completed</option>
               <option value="archived">Archived</option>
             </select>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => toggleSort('dueDate')}
+                className={`px-3 py-1.5 rounded-lg text-sm ${
+                  sortBy === 'dueDate' ? 'bg-emerald-600/20 text-emerald-400' : 'bg-zinc-800/50 text-zinc-300'
+                }`}
+              >
+                Due Date {sortBy === 'dueDate' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </button>
+              <button
+                onClick={() => toggleSort('priority')}
+                className={`px-3 py-1.5 rounded-lg text-sm ${
+                  sortBy === 'priority' ? 'bg-emerald-600/20 text-emerald-400' : 'bg-zinc-800/50 text-zinc-300'
+                }`}
+              >
+                Priority {sortBy === 'priority' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="space-y-4">
-          {tasks.map((task) => (
+          {getSortedTasks().map((task) => (
             <Link
               key={task._id}
               href={`/tasks/${task._id}`}
-              className="block bg-zinc-800/50 rounded-lg p-4 hover:bg-zinc-800/70 transition-colors"
+              className="block bg-zinc-800/50 rounded-lg p-4 hover:bg-zinc-800/70 transition-colors relative group"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -138,9 +205,19 @@ export default function TasksPage() {
                     )}
                   </div>
                 </div>
-                <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => handleDelete(e, task._id)}
+                    className="p-1.5 text-zinc-400 hover:text-red-400 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                  <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
               </div>
             </Link>
           ))}
