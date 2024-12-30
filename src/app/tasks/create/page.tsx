@@ -20,37 +20,83 @@ export default function CreateTaskPage() {
   const [textInput, setTextInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [parsedTasks, setParsedTasks] = useState<ParsedTask[]>([]);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const router = useRouter();
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder.current = new MediaRecorder(stream);
+      // Reset permission denied state
+      setPermissionDenied(false);
+
+      // More specific audio constraints for better mobile support
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100,
+        }
+      });
+
+      const options = {
+        mimeType: 'audio/webm;codecs=opus'
+      };
+
+      // Check if the browser supports the mime type, fallback if not
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        console.log('Falling back to default mime type');
+        mediaRecorder.current = new MediaRecorder(stream);
+      } else {
+        mediaRecorder.current = new MediaRecorder(stream, options);
+      }
+
       const chunks: BlobPart[] = [];
 
       mediaRecorder.current.ondataavailable = (e) => {
-        chunks.push(e.data);
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
       };
 
       mediaRecorder.current.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const blob = new Blob(chunks, { type: mediaRecorder.current?.mimeType || 'audio/webm' });
         setAudioBlob(blob);
       };
 
-      mediaRecorder.current.start();
+      // Request data every second for better reliability
+      mediaRecorder.current.start(1000);
       setIsRecording(true);
     } catch (err) {
       console.error('Error accessing microphone:', err);
-      alert('Could not access microphone. Please check permissions.');
+      setPermissionDenied(true);
+      
+      // More specific error messages
+      if (err instanceof DOMException) {
+        if (err.name === 'NotAllowedError') {
+          alert('Microphone access was denied. Please allow microphone access in your browser settings and try again.');
+        } else if (err.name === 'NotFoundError') {
+          alert('No microphone was found. Please ensure your device has a working microphone.');
+        } else if (err.name === 'NotReadableError') {
+          alert('Could not access your microphone. Please ensure no other app is using it.');
+        } else {
+          alert('Could not access microphone. Please check permissions and try again.');
+        }
+      } else {
+        alert('An error occurred while trying to access the microphone. Please try again.');
+      }
     }
   };
 
   const stopRecording = () => {
     if (mediaRecorder.current && isRecording) {
-      mediaRecorder.current.stop();
+      try {
+        mediaRecorder.current.stop();
+        mediaRecorder.current.stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        console.error('Error stopping recording:', err);
+      }
       setIsRecording(false);
-      mediaRecorder.current.stream.getTracks().forEach(track => track.stop());
     }
   };
 
@@ -182,100 +228,65 @@ export default function CreateTaskPage() {
         )}
 
         {mode === 'voice' && (
-          <div className="flex flex-col items-center gap-4">
-            <button
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={isProcessing}
-              className={`relative inline-flex items-center justify-center w-24 h-24 rounded-full transition-all ${
-                isRecording
-                  ? 'bg-red-500 animate-pulse'
-                  : 'button hover:scale-105'
-              } disabled:opacity-50`}
-            >
-              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-              </svg>
-              {isRecording && (
-                <div className="absolute -inset-2">
-                  <div className="w-full h-full rounded-full bg-red-500 animate-ping opacity-20"></div>
+          <div className="space-y-4 text-center">
+            <div className="flex flex-col items-center gap-4">
+              {permissionDenied ? (
+                <div className="text-red-400 mb-4">
+                  <p>Microphone access was denied.</p>
+                  <p className="text-sm mt-2">Please check your browser settings and try again.</p>
                 </div>
-              )}
-            </button>
-            <p className="text-sm text-zinc-400">
-              {isRecording ? 'Tap to stop recording' : audioBlob ? 'Recording complete' : 'Tap to start recording'}
-            </p>
-          </div>
-        )}
-
-        {mode === 'review' && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Review Tasks</h2>
-            {parsedTasks.map((task, index) => (
-              <div key={task.id} className="bg-zinc-800/30 rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <input
-                    type="text"
-                    value={task.title}
-                    onChange={(e) => handleTaskUpdate(index, 'title', e.target.value)}
-                    className="bg-transparent text-white text-lg font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-1 w-full"
-                  />
+              ) : isRecording ? (
+                <>
+                  <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
+                    <div className="w-8 h-8 bg-red-600 rounded-full" />
+                  </div>
                   <button
-                    onClick={() => handleTaskDelete(index)}
-                    className="p-1 text-zinc-400 hover:text-red-400"
+                    onClick={stopRecording}
+                    className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    Stop Recording
+                  </button>
+                </>
+              ) : audioBlob ? (
+                <>
+                  <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div className="space-x-2">
+                    <button
+                      onClick={() => {
+                        setAudioBlob(null);
+                        startRecording();
+                      }}
+                      className="px-6 py-3 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg transition-colors"
+                    >
+                      Record Again
+                    </button>
+                    <button
+                      onClick={processInput}
+                      className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? 'Processing...' : 'Use Recording'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={startRecording}
+                    className="w-16 h-16 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                     </svg>
                   </button>
-                </div>
-
-                <div className="flex gap-4 flex-wrap">
-                  <select
-                    value={task.priority || ''}
-                    onChange={(e) => handleTaskUpdate(index, 'priority', e.target.value)}
-                    className="bg-zinc-700 text-white rounded px-2 py-1 text-sm min-w-[100px]"
-                  >
-                    <option value="">No Priority</option>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-
-                  <input
-                    type="date"
-                    value={task.deadline ? new Date(task.deadline).toISOString().split('T')[0] : ''}
-                    onChange={(e) => {
-                      const currentDeadline = task.deadline ? new Date(task.deadline) : new Date();
-                      const [year, month, day] = e.target.value.split('-');
-                      currentDeadline.setFullYear(parseInt(year), parseInt(month) - 1, parseInt(day));
-                      handleTaskUpdate(index, 'deadline', currentDeadline.toISOString());
-                    }}
-                    className="bg-zinc-700 text-white rounded px-2 py-1 text-sm min-w-[130px]"
-                  />
-
-                  <input
-                    type="time"
-                    value={task.deadline ? new Date(task.deadline).toTimeString().slice(0, 5) : ''}
-                    onChange={(e) => {
-                      const currentDeadline = task.deadline ? new Date(task.deadline) : new Date();
-                      const [hours, minutes] = e.target.value.split(':');
-                      currentDeadline.setHours(parseInt(hours), parseInt(minutes));
-                      handleTaskUpdate(index, 'deadline', currentDeadline.toISOString());
-                    }}
-                    className="bg-zinc-700 text-white rounded px-2 py-1 text-sm min-w-[100px]"
-                  />
-                </div>
-
-                {task.description && (
-                  <textarea
-                    value={task.description}
-                    onChange={(e) => handleTaskUpdate(index, 'description', e.target.value)}
-                    className="w-full bg-zinc-700/50 rounded p-2 text-white text-sm"
-                    rows={2}
-                  />
-                )}
-              </div>
-            ))}
+                  <p className="text-zinc-400">Click to start recording</p>
+                </>
+              )}
+            </div>
           </div>
         )}
 

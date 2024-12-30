@@ -5,7 +5,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function POST(req: Request) {
+export async function POST(
+  req: Request,
+  { params }: { params: { taskId: string } }
+) {
   try {
     const { title } = await req.json();
 

@@ -7,8 +7,6 @@ const SubTaskSchema = new mongoose.Schema({
     enum: ['not_started', 'in_progress', 'completed'],
     default: 'not_started'
   },
-  dueDate: { type: String },
-  dueTime: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 

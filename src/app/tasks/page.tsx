@@ -195,12 +195,9 @@ export default function TasksPage() {
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h3 className="text-lg font-medium mb-1">{task.title}</h3>
-                  {task.description && (
-                    <p className="text-zinc-400 text-sm mb-2 line-clamp-2">{task.description}</p>
-                  )}
+                  <h3 className="text-lg font-medium mb-2">{task.title}</h3>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`px-2 py-1 text-sm rounded-md ${
+                    <span className={`inline-flex items-center px-2 py-1 text-sm rounded-md ${
                       task.status === 'completed' ? 'bg-green-900/50 text-green-200' :
                       task.status === 'in_progress' ? 'bg-blue-900/50 text-blue-200' :
                       task.status === 'archived' ? 'bg-zinc-700/50 text-zinc-300' :
@@ -208,16 +205,16 @@ export default function TasksPage() {
                     }`}>
                       {toTitleCase(task.status)}
                     </span>
-                    <span className={`px-2 py-1 text-sm rounded-md ${
+                    <span className={`inline-flex items-center px-2 py-1 text-sm rounded-md ${
                       task.priority === 'high' ? 'bg-red-900/50 text-red-200' :
                       task.priority === 'medium' ? 'bg-yellow-900/50 text-yellow-200' :
                       'bg-green-900/50 text-green-200'
                     }`}>
-                      {toTitleCase(task.priority)} Priority
+                      {toTitleCase(task.priority)}
                     </span>
-                    {(task.dueDate || task.dueTime) && (
-                      <span className="px-2 py-1 text-sm rounded-md bg-zinc-800/50 text-zinc-300">
-                        Due: {formatDateTime(task.dueDate, task.dueTime)}
+                    {task.dueDate && (
+                      <span className="inline-flex items-center px-2 py-1 text-sm rounded-md bg-zinc-800/50 text-zinc-300">
+                        {new Date(task.dueDate).toLocaleDateString()}
                       </span>
                     )}
                   </div>
