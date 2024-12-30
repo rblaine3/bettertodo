@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths } from 'date-fns';
+import Link from 'next/link';
 
 interface Task {
   _id: string;
@@ -140,16 +141,17 @@ export default function CalendarPage() {
                   </div>
                   <div className="flex-1 space-y-0.5 min-h-0 overflow-hidden">
                     {dayTasks.slice(0, 3).map((task, i) => (
-                      <div
+                      <Link
                         key={task._id}
-                        className={`text-[10px] leading-tight truncate rounded px-1 py-0.5 ${getPriorityColor(task.priority)}`}
+                        href={`/tasks/${task._id}`}
+                        className={`block text-[10px] leading-tight truncate rounded px-1 py-0.5 hover:opacity-80 transition-opacity relative z-20 ${getPriorityColor(task.priority)}`}
                         title={`${task.title}${task.dueTime ? ` at ${task.dueTime}` : ''}`}
                       >
                         {task.dueTime && (
                           <span className="mr-1 text-[9px] opacity-75 font-medium">{task.dueTime}</span>
                         )}
                         {task.title}
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 </div>
@@ -169,29 +171,32 @@ export default function CalendarPage() {
                 <p className="text-zinc-400">No tasks scheduled for this day</p>
               ) : (
                 getTasksForDate(selectedDate).map(task => (
-                  <div
+                  <Link
                     key={task._id}
-                    className="bg-zinc-800/50 rounded-lg p-3 flex items-start gap-3"
+                    href={`/tasks/${task._id}`}
+                    className="block bg-zinc-800/50 rounded-lg p-3 hover:bg-zinc-700/50 transition-colors"
                   >
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium mb-1">{task.title}</h3>
-                      {task.description && (
-                        <p className="text-sm text-zinc-400 line-clamp-2 mb-2">
-                          {task.description}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap gap-2">
-                        <span className={`px-2 py-1 text-xs rounded-md ${getPriorityColor(task.priority)}`}>
-                          {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} Priority
-                        </span>
-                        {task.dueTime && (
-                          <span className="px-2 py-1 text-xs rounded-md bg-zinc-800/50 text-zinc-300">
-                            Due at {task.dueTime}
-                          </span>
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium mb-1">{task.title}</h3>
+                        {task.description && (
+                          <p className="text-sm text-zinc-400 line-clamp-2 mb-2">
+                            {task.description}
+                          </p>
                         )}
+                        <div className="flex flex-wrap gap-2">
+                          <span className={`px-2 py-1 text-xs rounded-md ${getPriorityColor(task.priority)}`}>
+                            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} Priority
+                          </span>
+                          {task.dueTime && (
+                            <span className="px-2 py-1 text-xs rounded-md bg-zinc-800/50 text-zinc-300">
+                              Due at {task.dueTime}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>

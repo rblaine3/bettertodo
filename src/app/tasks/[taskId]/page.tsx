@@ -403,18 +403,24 @@ export default function TaskDetailPage() {
             </select>
 
             <div className="flex items-center gap-4 bg-zinc-800/50 rounded-md px-4 py-2">
-              <input
-                type="date"
-                value={formatDateForInput(task.dueDate)}
-                onChange={(e) => updateTaskDate(e.target.value || undefined)}
-                className="bg-transparent border-0 text-lg focus:ring-0 cursor-pointer text-zinc-300 w-40"
-              />
-              <input
-                type="time"
-                value={formatTimeForInput(task.dueTime)}
-                onChange={(e) => updateTaskTime(e.target.value || undefined)}
-                className="bg-transparent border-0 text-lg focus:ring-0 cursor-pointer text-zinc-300 w-32"
-              />
+              <div className="flex flex-col">
+                <label className="text-xs text-zinc-400 mb-1">Due Date</label>
+                <input
+                  type="date"
+                  value={formatDateForInput(task.dueDate)}
+                  onChange={(e) => updateTaskDate(e.target.value || undefined)}
+                  className="bg-transparent border-0 text-lg focus:ring-0 cursor-pointer text-zinc-300 w-40 hover:text-emerald-400 transition-colors"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-xs text-zinc-400 mb-1">Due Time</label>
+                <input
+                  type="time"
+                  value={formatTimeForInput(task.dueTime)}
+                  onChange={(e) => updateTaskTime(e.target.value || undefined)}
+                  className="bg-transparent border-0 text-lg focus:ring-0 cursor-pointer text-zinc-300 w-32 hover:text-emerald-400 transition-colors"
+                />
+              </div>
             </div>
           </div>
 
@@ -462,129 +468,112 @@ export default function TaskDetailPage() {
               )}
             </div>
             
-            {(!task.subTasks || task.subTasks.length === 0) ? (
-              <div className="bg-zinc-800/30 rounded-lg p-10 text-center">
-                <p className="text-zinc-400 mb-4">No subtasks yet</p>
-                <p className="text-zinc-500 text-lg">Click the "Generate with GPT" button to automatically create subtasks, or add them manually below.</p>
-              </div>
-            ) : (
-              <div className="bg-zinc-800/30 rounded-lg overflow-hidden">
-                <div className="divide-y divide-zinc-700/30">
-                  {task.subTasks?.map((subtask) => (
-                    <div key={subtask._id} className="group">
-                      <div className="flex items-center px-4 py-3">
-                        <div className="flex-none w-32">
-                          <select
-                            value={subtask.status}
-                            onChange={(e) => updateSubTaskStatus(subtask._id, e.target.value as 'not_started' | 'in_progress' | 'completed')}
-                            className="w-full bg-transparent border-0 focus:ring-0 text-sm cursor-pointer group-hover:text-white transition-colors"
-                          >
-                            <option value="not_started" className="bg-zinc-800">Not Started</option>
-                            <option value="in_progress" className="bg-zinc-800">In Progress</option>
-                            <option value="completed" className="bg-zinc-800">Completed</option>
-                          </select>
-                        </div>
-                        <div className="flex-1 min-w-0 px-4">
-                          {editingSubtaskId === subtask._id ? (
-                            <input
-                              type="text"
-                              value={editingSubtaskTitle}
-                              onChange={(e) => setEditingSubtaskTitle(e.target.value)}
-                              onBlur={() => updateSubTaskTitle(subtask._id)}
-                              onKeyPress={(e) => e.key === 'Enter' && updateSubTaskTitle(subtask._id)}
-                              className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none text-sm"
-                              autoFocus
-                            />
-                          ) : (
-                            <span 
-                              onClick={() => {
-                                setEditingSubtaskId(subtask._id);
-                                setEditingSubtaskTitle(subtask.title);
-                              }}
-                              className={`cursor-text text-sm ${
-                                subtask.status === 'completed' ? 'line-through text-zinc-500' : 
-                                subtask.status === 'in_progress' ? 'text-blue-400' : ''
-                              }`}
-                            >
-                              {toTitleCase(subtask.title)}
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => {
-                            if (confirm('Are you sure you want to delete this subtask?')) {
-                              deleteSubTask(subtask._id);
-                            }
-                          }}
-                          className="flex-none p-1.5 hover:bg-red-500/20 rounded text-zinc-400 hover:text-red-400 transition-colors"
-                          aria-label="Delete subtask"
+            <div className="bg-zinc-800/30 rounded-lg overflow-hidden">
+              <div className="divide-y divide-zinc-700/30">
+                {task.subTasks?.map((subtask) => (
+                  <div key={subtask._id} className="group">
+                    <div className="flex items-center px-4 py-3">
+                      <div className="flex-none w-32">
+                        <select
+                          value={subtask.status}
+                          onChange={(e) => updateSubTaskStatus(subtask._id, e.target.value as 'not_started' | 'in_progress' | 'completed')}
+                          className="w-full bg-transparent border-0 focus:ring-0 text-sm cursor-pointer group-hover:text-white transition-colors"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                          <option value="not_started" className="bg-zinc-800">Not Started</option>
+                          <option value="in_progress" className="bg-zinc-800">In Progress</option>
+                          <option value="completed" className="bg-zinc-800">Completed</option>
+                        </select>
                       </div>
-                      <div className="flex items-center px-4 py-2 bg-zinc-800/30">
-                        <div className="flex items-center gap-4">
+                      <div className="flex-1 min-w-0 px-4">
+                        {editingSubtaskId === subtask._id ? (
+                          <input
+                            type="text"
+                            value={editingSubtaskTitle}
+                            onChange={(e) => setEditingSubtaskTitle(e.target.value)}
+                            onBlur={() => updateSubTaskTitle(subtask._id)}
+                            onKeyPress={(e) => e.key === 'Enter' && updateSubTaskTitle(subtask._id)}
+                            className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none text-sm"
+                            autoFocus
+                          />
+                        ) : (
+                          <span 
+                            onClick={() => {
+                              setEditingSubtaskId(subtask._id);
+                              setEditingSubtaskTitle(subtask.title);
+                            }}
+                            className={`cursor-text text-sm ${
+                              subtask.status === 'completed' ? 'line-through text-zinc-500' : 
+                              subtask.status === 'in_progress' ? 'text-blue-400' : ''
+                            }`}
+                          >
+                            {toTitleCase(subtask.title)}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete this subtask?')) {
+                            deleteSubTask(subtask._id);
+                          }
+                        }}
+                        className="flex-none p-1.5 hover:bg-red-500/20 rounded text-zinc-400 hover:text-red-400 transition-colors"
+                        aria-label="Delete subtask"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="flex items-center px-4 py-2 bg-zinc-800/30">
+                      <div className="flex items-center gap-4">
+                        <div className="flex flex-col">
+                          <label className="text-xs text-zinc-400 mb-1">Due Date</label>
                           <input
                             type="date"
                             value={formatDateForInput(subtask.dueDate)}
                             onChange={(e) => updateSubTaskDateTime(subtask._id, e.target.value || undefined, subtask.dueTime)}
-                            className="bg-transparent border-0 text-sm focus:ring-0 cursor-pointer text-zinc-300"
+                            className="bg-transparent border-0 text-sm focus:ring-0 cursor-pointer text-zinc-300 hover:text-emerald-400 transition-colors"
                           />
+                        </div>
+                        <div className="flex flex-col">
+                          <label className="text-xs text-zinc-400 mb-1">Due Time</label>
                           <input
                             type="time"
                             value={formatTimeForInput(subtask.dueTime)}
                             onChange={(e) => updateSubTaskDateTime(subtask._id, subtask.dueDate, e.target.value || undefined)}
-                            className="bg-transparent border-0 text-sm focus:ring-0 cursor-pointer text-zinc-300"
+                            className="bg-transparent border-0 text-sm focus:ring-0 cursor-pointer text-zinc-300 hover:text-emerald-400 transition-colors"
                           />
                         </div>
                       </div>
                     </div>
-                  ))}
-                  {/* Add new subtask row */}
-                  <div className="group">
-                    <div className="flex items-center px-4 py-3">
-                      <div className="flex-none w-32">
-                        <select
-                          value="not_started"
-                          disabled
-                          className="w-full bg-transparent border-0 focus:ring-0 text-sm text-zinc-500"
-                        >
-                          <option value="not_started">Not Started</option>
-                        </select>
-                      </div>
-                      <div className="flex-1 min-w-0 px-4">
-                        <input
-                          type="text"
-                          value={newSubTask}
-                          onChange={(e) => setNewSubTask(e.target.value)}
-                          onKeyPress={(e) => e.key === 'Enter' && addSubTask()}
-                          placeholder="Add a new subtask..."
-                          className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none placeholder-zinc-600 text-sm"
-                        />
-                      </div>
+                  </div>
+                ))}
+                {/* Add new subtask row */}
+                <div className="group">
+                  <div className="flex items-center px-4 py-3">
+                    <div className="flex-none w-32">
+                      <select
+                        value="not_started"
+                        disabled
+                        className="w-full bg-transparent border-0 focus:ring-0 text-sm text-zinc-500"
+                      >
+                        <option value="not_started">Not Started</option>
+                      </select>
                     </div>
-                    <div className="flex items-center px-4 py-2 bg-zinc-800/30">
-                      <div className="flex items-center gap-4">
-                        <input
-                          type="date"
-                          disabled
-                          value=""
-                          className="bg-transparent border-0 text-sm focus:ring-0 cursor-not-allowed text-zinc-500"
-                        />
-                        <input
-                          type="time"
-                          disabled
-                          value=""
-                          className="bg-transparent border-0 text-sm focus:ring-0 cursor-not-allowed text-zinc-500"
-                        />
-                      </div>
+                    <div className="flex-1 min-w-0 px-4">
+                      <input
+                        type="text"
+                        value={newSubTask}
+                        onChange={(e) => setNewSubTask(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && addSubTask()}
+                        placeholder="Add a new subtask..."
+                        className="w-full bg-transparent border-0 focus:ring-0 focus:outline-none placeholder-zinc-600 text-sm"
+                      />
                     </div>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Notes Section */}

@@ -13,13 +13,35 @@ interface Task {
   dueTime?: string;
 }
 
+type SortOption = 
+  | 'due-date-asc' 
+  | 'due-date-desc' 
+  | 'priority-asc' 
+  | 'priority-desc'
+  | 'title-asc'
+  | 'title-desc';
+
+const sortOptions = [
+  { value: 'due-date-asc', label: 'Due Date (Earliest First)' },
+  { value: 'due-date-desc', label: 'Due Date (Latest First)' },
+  { value: 'priority-asc', label: 'Priority (Low to High)' },
+  { value: 'priority-desc', label: 'Priority (High to Low)' },
+  { value: 'title-asc', label: 'Title (A to Z)' },
+  { value: 'title-desc', label: 'Title (Z to A)' },
+];
+
+const priorityValues = {
+  high: 3,
+  medium: 2,
+  low: 1
+};
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [sortBy, setSortBy] = useState<'dueDate' | 'priority'>('dueDate');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [sortBy, setSortBy] = useState<SortOption>('due-date-asc');
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -76,26 +98,29 @@ export default function TasksPage() {
       : tasks.filter(task => task.status === selectedStatus);
 
     return filteredTasks.sort((a, b) => {
-      if (sortBy === 'dueDate') {
-        const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
-        const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
-        return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
-      } else {
-        const priorityMap = { high: 3, medium: 2, low: 1 };
-        const priorityA = priorityMap[a.priority];
-        const priorityB = priorityMap[b.priority];
-        return sortDirection === 'asc' ? priorityA - priorityB : priorityB - priorityA;
+      switch (sortBy) {
+        case 'due-date-asc':
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        case 'due-date-desc':
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
+        case 'priority-asc':
+          return priorityValues[a.priority as keyof typeof priorityValues] - 
+                 priorityValues[b.priority as keyof typeof priorityValues];
+        case 'priority-desc':
+          return priorityValues[b.priority as keyof typeof priorityValues] - 
+                 priorityValues[a.priority as keyof typeof priorityValues];
+        case 'title-asc':
+          return a.title.localeCompare(b.title);
+        case 'title-desc':
+          return b.title.localeCompare(a.title);
+        default:
+          return 0;
       }
     });
-  };
-
-  const toggleSort = (field: 'dueDate' | 'priority') => {
-    if (sortBy === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      setSortDirection('asc');
-    }
   };
 
   if (isLoading) {
@@ -134,39 +159,31 @@ export default function TasksPage() {
   return (
     <div className="min-h-full">
       <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">Tasks</h1>
-          <div className="flex items-center space-x-4">
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-zinc-800/50 text-zinc-300 rounded-lg px-3 py-1.5 text-sm focus:ring-0 focus:outline-none cursor-pointer"
-            >
-              <option value="all">All Tasks</option>
-              <option value="pending">Pending</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-              <option value="archived">Archived</option>
-            </select>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => toggleSort('dueDate')}
-                className={`px-3 py-1.5 rounded-lg text-sm ${
-                  sortBy === 'dueDate' ? 'bg-emerald-600/20 text-emerald-400' : 'bg-zinc-800/50 text-zinc-300'
-                }`}
-              >
-                Due Date {sortBy === 'dueDate' && (sortDirection === 'asc' ? '↑' : '↓')}
-              </button>
-              <button
-                onClick={() => toggleSort('priority')}
-                className={`px-3 py-1.5 rounded-lg text-sm ${
-                  sortBy === 'priority' ? 'bg-emerald-600/20 text-emerald-400' : 'bg-zinc-800/50 text-zinc-300'
-                }`}
-              >
-                Priority {sortBy === 'priority' && (sortDirection === 'asc' ? '↑' : '↓')}
-              </button>
-            </div>
-          </div>
+        <h1 className="text-3xl font-bold mb-6">Tasks</h1>
+        <div className="flex flex-wrap gap-2 mb-4">
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="bg-zinc-800/50 text-zinc-300 rounded-lg px-2 py-1 text-sm focus:ring-0 focus:outline-none cursor-pointer max-w-[130px]"
+          >
+            <option value="all">All Tasks</option>
+            <option value="pending">Pending</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="archived">Archived</option>
+          </select>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            className="bg-zinc-800/50 text-zinc-300 rounded-lg px-2 py-1 text-sm focus:ring-0 focus:outline-none cursor-pointer max-w-[180px]"
+          >
+            {sortOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="space-y-4">
