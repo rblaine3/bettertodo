@@ -118,9 +118,16 @@ ${input}`
 
   try {
     // Handle both string and complex message content
-    const content = typeof response.content === 'string' 
-      ? response.content 
-      : response.content.map(c => typeof c === 'string' ? c : c.text).join('');
+    let content = '';
+    if (typeof response.content === 'string') {
+      content = response.content;
+    } else {
+      content = response.content
+        .filter((c): c is { type: 'text', text: string } => 
+          typeof c === 'object' && c !== null && 'type' in c && c.type === 'text')
+        .map(c => c.text)
+        .join('');
+    }
       
     const parsed = JSON.parse(content);
     const result = tasksResponseSchema.parse(parsed);
