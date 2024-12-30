@@ -6,7 +6,7 @@ import BottomNav from '@/components/BottomNav'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Better ToDo',
+  title: 'BetterToDo',
   description: 'A better way to manage your tasks',
 }
 

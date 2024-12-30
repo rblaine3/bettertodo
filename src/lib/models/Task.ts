@@ -29,7 +29,7 @@ const TaskSchema = new mongoose.Schema({
     enum: ['low', 'medium', 'high'],
     default: 'medium'
   },
-  dueDate: { type: String },
+  dueDate: { type: Date },
   dueTime: { type: String },
   notes: { type: String },
   subTasks: [SubTaskSchema],

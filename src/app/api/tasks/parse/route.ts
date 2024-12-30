@@ -44,18 +44,18 @@ export async function POST(req: Request) {
     console.log('Sending request to GPT...');
     const prompt = `Extract task details from this input. Return a JSON array of task objects. Each task should contain:
 - title (required): A clear, concise task title
-- notes (optional): Additional details or notes about the task
+- notes (optional): Additional details or notes about the task, this should be to the level of granularity provided by the respondent.
 - priority (optional): "low", "medium", or "high"
 - dueDate (optional): Date in YYYY-MM-DD format
 - dueTime (optional): Time in HH:mm format (24-hour)
 
-If multiple tasks are mentioned, create multiple task objects. If a task has a dependency or is related to another task, include it in the notes.
+If multiple tasks are mentioned, create multiple task objects. If a task has a dependency or is related to another task, include it in the notes. Include information in the notes in a cleanly formatted way while ensuring the notes are comprehensive of what the user has mentioned.
 
-Example input: "Buy groceries tomorrow morning and call mom in the evening"
+Example input: "Buy groceries tomorrow morning. I need to get tomatoes, corn, and lettuce. Oh, and call mom in the evening"
 Example response: [
   {
     "title": "Buy groceries",
-    "notes": "Morning shopping task",
+    "notes": "Shopping list: tomatoes, corn, lettuce",
     "priority": "medium",
     "dueDate": "2024-12-31",
     "dueTime": "09:00"
@@ -84,14 +84,32 @@ Input: ${userInput}`;
     // Parse and validate the response
     let tasks = [];
     try {
-      tasks = JSON.parse(content || '[]');
+      if (!content) {
+        console.error('Empty response from GPT');
+        throw new Error('Empty response from GPT');
+      }
+
+      tasks = JSON.parse(content);
       console.log('Parsed GPT response:', tasks);
       
       // Validate the response format
-      if (!Array.isArray(tasks) || tasks.length === 0) {
-        console.log('Invalid response format');
-        throw new Error('Invalid response format');
+      if (!Array.isArray(tasks)) {
+        console.error('Response is not an array:', tasks);
+        throw new Error('Invalid response format: not an array');
       }
+
+      if (tasks.length === 0) {
+        console.error('No tasks found in response');
+        throw new Error('No tasks found in response');
+      }
+
+      // Validate each task object
+      tasks.forEach((task, index) => {
+        if (!task.title) {
+          console.error(`Task ${index} missing title:`, task);
+          throw new Error(`Task ${index} missing required title field`);
+        }
+      });
 
       // Add unique IDs and ensure required fields
       tasks = tasks.map(task => ({
@@ -102,24 +120,29 @@ Input: ${userInput}`;
         dueDate: task.dueDate || null,
         dueTime: task.dueTime || null
       }));
-      console.log('Processed tasks:', tasks);
+
+      return NextResponse.json({ success: true, tasks, rawInput: userInput });
     } catch (error) {
       console.error('Error parsing GPT response:', error);
-      throw new Error('Failed to parse task details');
+      console.error('Raw content:', content);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Failed to parse task details',
+          rawContent: content 
+        },
+        { status: 400 }
+      );
     }
-
-    return NextResponse.json({ 
-      success: true,
-      tasks,
-      rawInput: userInput 
-    });
-  } catch (error: any) {
-    console.error('Error processing input:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to process input'
-    }, { 
-      status: 500 
-    });
+  } catch (error) {
+    console.error('API error:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Internal server error',
+        details: error instanceof Error ? error.stack : undefined
+      },
+      { status: 500 }
+    );
   }
 }

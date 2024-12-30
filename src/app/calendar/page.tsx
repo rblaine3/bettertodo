@@ -46,8 +46,8 @@ export default function CalendarPage() {
   const getTasksForDate = (date: Date) => {
     return tasks.filter(task => {
       if (!task.dueDate) return false;
-      const taskDate = new Date(task.dueDate);
-      return format(taskDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd');
+      // task.dueDate is already a Date object from MongoDB
+      return format(new Date(task.dueDate), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd');
     });
   };
 

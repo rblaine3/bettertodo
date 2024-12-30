@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 
 interface Task {
@@ -36,12 +36,97 @@ const priorityValues = {
   low: 1
 };
 
+interface EditPopupProps {
+  type: 'status' | 'priority' | 'date';
+  value: string;
+  taskId: string;
+  onClose: () => void;
+  onUpdate: (value: string) => void;
+  position: { x: number; y: number };
+}
+
+const EditPopup = ({ type, value, onClose, onUpdate, position }: EditPopupProps) => {
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  const getContent = () => {
+    switch (type) {
+      case 'status':
+        return (
+          <select
+            value={value}
+            onChange={(e) => onUpdate(e.target.value)}
+            className="bg-zinc-800 text-zinc-200 rounded-md px-2 py-1 text-sm border border-zinc-700"
+            autoFocus
+          >
+            <option value="pending">Pending</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="archived">Archived</option>
+          </select>
+        );
+      case 'priority':
+        return (
+          <select
+            value={value}
+            onChange={(e) => onUpdate(e.target.value)}
+            className="bg-zinc-800 text-zinc-200 rounded-md px-2 py-1 text-sm border border-zinc-700"
+            autoFocus
+          >
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        );
+      case 'date':
+        return (
+          <input
+            type="date"
+            value={value}
+            onChange={(e) => onUpdate(e.target.value)}
+            className="bg-zinc-800 text-zinc-200 rounded-md px-2 py-1 text-sm border border-zinc-700"
+            autoFocus
+          />
+        );
+    }
+  };
+
+  return (
+    <div
+      ref={popupRef}
+      className="absolute z-50 bg-zinc-900 rounded-lg shadow-xl border border-zinc-700 p-2"
+      style={{ 
+        top: position.y + 'px',
+        left: position.x + 'px',
+      }}
+    >
+      {getContent()}
+    </div>
+  );
+};
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [sortBy, setSortBy] = useState<SortOption>('due-date-asc');
+  const [editPopup, setEditPopup] = useState<{
+    type: 'status' | 'priority' | 'date';
+    taskId: string;
+    value: string;
+    position: { x: number; y: number };
+  } | null>(null);
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -123,6 +208,52 @@ export default function TasksPage() {
     });
   };
 
+  const handleFieldClick = (
+    e: React.MouseEvent,
+    type: 'status' | 'priority' | 'date',
+    taskId: string,
+    value: string
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setEditPopup({
+      type,
+      taskId,
+      value: value || '',
+      position: {
+        x: rect.left,
+        y: rect.bottom + window.scrollY,
+      },
+    });
+  };
+
+  const handleUpdate = async (value: string) => {
+    if (!editPopup) return;
+
+    try {
+      const field = editPopup.type === 'date' ? 'dueDate' : editPopup.type;
+      const response = await fetch(`/api/tasks/${editPopup.taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      });
+
+      if (!response.ok) throw new Error(`Failed to update ${editPopup.type}`);
+      
+      setTasks(prev => prev.map(task => 
+        task._id === editPopup.taskId 
+          ? { ...task, [field]: value }
+          : task
+      ));
+    } catch (error) {
+      console.error(`Error updating ${editPopup.type}:`, error);
+      setError(`Failed to update ${editPopup.type}`);
+    } finally {
+      setEditPopup(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -197,26 +328,33 @@ export default function TasksPage() {
                 <div className="flex-1">
                   <h3 className="text-lg font-medium mb-2">{task.title}</h3>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`inline-flex items-center px-2 py-1 text-sm rounded-md ${
-                      task.status === 'completed' ? 'bg-green-900/50 text-green-200' :
-                      task.status === 'in_progress' ? 'bg-blue-900/50 text-blue-200' :
-                      task.status === 'archived' ? 'bg-zinc-700/50 text-zinc-300' :
-                      'bg-zinc-800/50 text-zinc-300'
-                    }`}>
+                    <button
+                      onClick={(e) => handleFieldClick(e, 'status', task._id, task.status)}
+                      className={`inline-flex items-center px-2 py-1 text-sm rounded-md ${
+                        task.status === 'completed' ? 'bg-green-900/50 text-green-200' :
+                        task.status === 'in_progress' ? 'bg-blue-900/50 text-blue-200' :
+                        task.status === 'archived' ? 'bg-zinc-700/50 text-zinc-300' :
+                        'bg-zinc-800/50 text-zinc-300'
+                      }`}
+                    >
                       {toTitleCase(task.status)}
-                    </span>
-                    <span className={`inline-flex items-center px-2 py-1 text-sm rounded-md ${
-                      task.priority === 'high' ? 'bg-red-900/50 text-red-200' :
-                      task.priority === 'medium' ? 'bg-yellow-900/50 text-yellow-200' :
-                      'bg-green-900/50 text-green-200'
-                    }`}>
+                    </button>
+                    <button
+                      onClick={(e) => handleFieldClick(e, 'priority', task._id, task.priority)}
+                      className={`inline-flex items-center px-2 py-1 text-sm rounded-md ${
+                        task.priority === 'high' ? 'bg-red-900/50 text-red-200' :
+                        task.priority === 'medium' ? 'bg-yellow-900/50 text-yellow-200' :
+                        'bg-green-900/50 text-green-200'
+                      }`}
+                    >
                       {toTitleCase(task.priority)}
-                    </span>
-                    {task.dueDate && (
-                      <span className="inline-flex items-center px-2 py-1 text-sm rounded-md bg-zinc-800/50 text-zinc-300">
-                        {new Date(task.dueDate).toLocaleDateString()}
-                      </span>
-                    )}
+                    </button>
+                    <button
+                      onClick={(e) => handleFieldClick(e, 'date', task._id, task.dueDate || '')}
+                      className="inline-flex items-center px-2 py-1 text-sm rounded-md bg-zinc-800/50 text-zinc-300"
+                    >
+                      {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Undefined'}
+                    </button>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -237,6 +375,14 @@ export default function TasksPage() {
           ))}
         </div>
       </div>
+
+      {editPopup && (
+        <EditPopup
+          {...editPopup}
+          onClose={() => setEditPopup(null)}
+          onUpdate={handleUpdate}
+        />
+      )}
     </div>
   );
 }

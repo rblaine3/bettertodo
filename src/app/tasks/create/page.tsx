@@ -22,6 +22,7 @@ export default function CreateTaskPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [parsedTasks, setParsedTasks] = useState<ParsedTask[]>([]);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const router = useRouter();
 
@@ -128,23 +129,26 @@ export default function CreateTaskPage() {
         body: formData,
       });
 
+      console.log('API Response:', await response.clone().json());
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API error details:', errorData);
+        throw new Error(errorData.error || 'Failed to process input');
+      }
+
       const data = await response.json();
-      console.log('API Response:', data);
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to parse task');
+      console.log('Setting parsed tasks:', data.tasks);
+      
+      if (!data.success || !data.tasks) {
+        throw new Error(data.error || 'Invalid response format');
       }
 
-      if (data.tasks?.length) {
-        console.log('Setting parsed tasks:', data.tasks);
-        setParsedTasks(data.tasks);
-        setMode('review');
-      } else {
-        throw new Error('No tasks were parsed from the input');
-      }
-    } catch (error: any) {
+      setParsedTasks(data.tasks);
+      setMode('review');
+    } catch (error) {
       console.error('Error processing input:', error);
-      alert(error.message || 'Error processing your input. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to process input');
     } finally {
       setIsProcessing(false);
     }
@@ -157,32 +161,40 @@ export default function CreateTaskPage() {
   };
 
   const handleTaskDelete = (index: number) => {
-    setParsedTasks(prev => prev.filter((_, i) => i !== index));
+    setParsedTasks(tasks => tasks.filter((_, i) => i !== index));
   };
 
   const handleSaveTasks = async () => {
-    if (!parsedTasks.length) return;
-
-    setIsProcessing(true);
     try {
-      // Save tasks to database
-      const response = await fetch('/api/tasks/bulk', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ tasks: parsedTasks }),
-      });
+      setIsProcessing(true);
+      
+      // Process tasks before saving
+      const processedTasks = parsedTasks.map(task => ({
+        ...task,
+        dueDate: task.dueDate ? new Date(task.dueDate) : null,
+      }));
 
-      if (!response.ok) {
-        throw new Error('Failed to save tasks');
+      const responses = await Promise.all(
+        processedTasks.map(task =>
+          fetch('/api/tasks', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(task),
+          })
+        )
+      );
+
+      const failedResponses = responses.filter(response => !response.ok);
+      if (failedResponses.length > 0) {
+        throw new Error(`Failed to save ${failedResponses.length} tasks`);
       }
 
-      // Redirect to tasks list
       router.push('/tasks');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error saving tasks:', error);
-      alert(error.message || 'Error saving tasks. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to save tasks');
     } finally {
       setIsProcessing(false);
     }
@@ -340,56 +352,72 @@ export default function CreateTaskPage() {
         {mode === 'review' && (
           <div>
             <h2 className="text-xl text-zinc-200 mb-4">Review Tasks</h2>
+            {error && (
+              <div className="text-red-400 mb-4">
+                <p>Error: {error}</p>
+              </div>
+            )}
             <div className="bg-zinc-800/30 rounded-lg overflow-hidden">
               <div className="divide-y divide-zinc-700/50">
                 {parsedTasks.map((task, index) => (
-                  <div key={task.id} className="p-3 hover:bg-zinc-700/20 transition-colors">
-                    <div className="flex items-center gap-3 mb-2">
+                  <div key={task.id} className="p-4 hover:bg-zinc-700/20 transition-colors">
+                    {/* Title Row */}
+                    <div className="mb-3">
                       <input
                         type="text"
                         value={task.title}
                         onChange={(e) => handleTaskUpdate(index, 'title', e.target.value)}
-                        className="flex-1 bg-zinc-800/30 border border-zinc-700 rounded px-2 py-1 text-white text-sm font-medium"
+                        className="w-full bg-zinc-800/30 border border-zinc-700 rounded px-3 py-2 text-white text-base font-medium"
                         placeholder="Task title"
                       />
                     </div>
-                    <div className="grid grid-cols-12 gap-2 items-center">
-                      <div className="col-span-6">
-                        <input
-                          type="text"
-                          value={task.notes}
-                          onChange={(e) => handleTaskUpdate(index, 'notes', e.target.value)}
-                          className="w-full bg-zinc-800/30 border border-zinc-700 rounded px-2 py-1 text-white text-sm"
-                          placeholder="Add notes..."
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <select
-                          value={task.priority}
-                          onChange={(e) => handleTaskUpdate(index, 'priority', e.target.value)}
-                          className="w-full bg-zinc-800/30 border border-zinc-700 rounded px-2 py-1 text-white text-sm"
-                        >
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                        </select>
-                      </div>
-                      <div className="col-span-2">
-                        <input
-                          type="date"
-                          value={task.dueDate || ''}
-                          onChange={(e) => handleTaskUpdate(index, 'dueDate', e.target.value)}
-                          className="w-full bg-zinc-800/30 border border-zinc-700 rounded px-2 py-1 text-white text-sm"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <input
-                          type="time"
-                          value={task.dueTime || ''}
-                          onChange={(e) => handleTaskUpdate(index, 'dueTime', e.target.value)}
-                          className="w-full bg-zinc-800/30 border border-zinc-700 rounded px-2 py-1 text-white text-sm"
-                        />
-                      </div>
+                    
+                    {/* Notes Row */}
+                    <div className="mb-3">
+                      <input
+                        type="text"
+                        value={task.notes}
+                        onChange={(e) => handleTaskUpdate(index, 'notes', e.target.value)}
+                        className="w-full bg-zinc-800/30 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
+                        placeholder="Add notes..."
+                      />
+                    </div>
+                    
+                    {/* Details Row */}
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={task.priority}
+                        onChange={(e) => handleTaskUpdate(index, 'priority', e.target.value)}
+                        className="bg-zinc-800/30 border border-zinc-700 rounded px-2 py-1 text-xs min-w-[80px]"
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                      </select>
+                      
+                      <input
+                        type="date"
+                        value={task.dueDate || ''}
+                        onChange={(e) => handleTaskUpdate(index, 'dueDate', e.target.value)}
+                        className="bg-zinc-800/30 border border-zinc-700 rounded px-2 py-1 text-xs"
+                      />
+                      
+                      <input
+                        type="time"
+                        value={task.dueTime || ''}
+                        onChange={(e) => handleTaskUpdate(index, 'dueTime', e.target.value)}
+                        className="bg-zinc-800/30 border border-zinc-700 rounded px-2 py-1 text-xs"
+                      />
+                      
+                      <button
+                        onClick={() => handleTaskDelete(index)}
+                        className="ml-auto p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                        title="Delete task"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -402,6 +430,7 @@ export default function CreateTaskPage() {
                   setTextInput('');
                   setAudioBlob(null);
                   setParsedTasks([]);
+                  setError(null);
                 }}
                 className="px-4 py-2 bg-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-600 text-sm"
               >
@@ -410,7 +439,7 @@ export default function CreateTaskPage() {
               <button
                 onClick={handleSaveTasks}
                 disabled={isProcessing || parsedTasks.length === 0}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 text-sm"
+                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg disabled:opacity-50 disabled:hover:from-blue-500 disabled:hover:to-indigo-600 text-sm font-medium shadow-lg shadow-blue-500/20 transition-all"
               >
                 {isProcessing ? 'Saving...' : 'Save Tasks'}
               </button>
