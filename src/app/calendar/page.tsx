@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import Link from 'next/link';
 
 interface Task {
@@ -39,7 +39,9 @@ export default function CalendarPage() {
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
-  const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 }); // Start on Sunday
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 }); // End on Saturday
+  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
   const getTasksForDate = (date: Date) => {
     return tasks.filter(task => {
@@ -111,7 +113,7 @@ export default function CalendarPage() {
           ))}
 
           {/* Calendar Days */}
-          {monthDays.map((day, index) => {
+          {calendarDays.map((day, index) => {
             const dayTasks = getTasksForDate(day);
             const isSelected = selectedDate && format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
             
