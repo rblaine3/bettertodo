@@ -8,9 +8,10 @@ type InputMode = 'select' | 'text' | 'voice' | 'review';
 interface ParsedTask {
   id: string;
   title: string;
-  description?: string;
-  priority?: 'low' | 'medium' | 'high';
-  deadline?: string;
+  notes: string;
+  priority: 'low' | 'medium' | 'high';
+  dueDate: string | null;
+  dueTime: string | null;
 }
 
 export default function CreateTaskPage() {
@@ -102,32 +103,48 @@ export default function CreateTaskPage() {
 
   const processInput = async () => {
     const input = mode === 'voice' ? audioBlob : textInput;
-    if (!input || (typeof input === 'string' && !input.trim())) return;
+    console.log('Processing input:', { mode, input });
+    
+    if (!input || (typeof input === 'string' && !input.trim())) {
+      alert('Please provide some input before processing');
+      return;
+    }
 
     setIsProcessing(true);
     try {
+      // Create form data with either voice or text input
       const formData = new FormData();
       if (input instanceof Blob) {
         formData.append('audio', input, 'recording.webm');
+        console.log('Added audio blob to form data');
       } else {
         formData.append('text', input);
+        console.log('Added text to form data:', input);
       }
 
+      console.log('Sending request to parse API...');
       const response = await fetch('/api/tasks/parse', {
         method: 'POST',
         body: formData,
       });
 
-      if (!response.ok) throw new Error('Failed to parse task');
-
       const data = await response.json();
+      console.log('API Response:', data);
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to parse task');
+      }
+
       if (data.tasks?.length) {
+        console.log('Setting parsed tasks:', data.tasks);
         setParsedTasks(data.tasks);
         setMode('review');
+      } else {
+        throw new Error('No tasks were parsed from the input');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing input:', error);
-      alert('Error processing your input. Please try again.');
+      alert(error.message || 'Error processing your input. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -148,6 +165,7 @@ export default function CreateTaskPage() {
 
     setIsProcessing(true);
     try {
+      // Save tasks to database
       const response = await fetch('/api/tasks/bulk', {
         method: 'POST',
         headers: {
@@ -156,12 +174,15 @@ export default function CreateTaskPage() {
         body: JSON.stringify({ tasks: parsedTasks }),
       });
 
-      if (!response.ok) throw new Error('Failed to save tasks');
+      if (!response.ok) {
+        throw new Error('Failed to save tasks');
+      }
 
+      // Redirect to tasks list
       router.push('/tasks');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving tasks:', error);
-      alert('Error saving tasks. Please try again.');
+      alert(error.message || 'Error saving tasks. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -174,15 +195,15 @@ export default function CreateTaskPage() {
           <div className="bg-zinc-800/30 rounded-lg p-6 mb-8">
             <h2 className="text-lg text-zinc-300 mb-2">How to Create a Task</h2>
             <p className="text-zinc-400 text-sm leading-relaxed">
-              Describe your task naturally, including any priority level or due dates. For example:
+              Describe your tasks naturally, including any priority levels or due dates. You can add multiple tasks at once. For example:
             </p>
             <div className="mt-2 space-y-2 text-sm text-zinc-400">
-              <p>• "Submit quarterly report by next Friday"</p>
-              <p>• "High priority: Call client about project updates tomorrow at 2pm"</p>
-              <p>• "Buy groceries this weekend, low priority"</p>
+              <p>• "Buy groceries tomorrow morning and call mom in the evening"</p>
+              <p>• "High priority: Submit report by Friday, then schedule team meeting for next week"</p>
+              <p>• "Get haircut this weekend and buy birthday gift for Sarah by next Thursday"</p>
             </div>
             <p className="mt-4 text-zinc-500 text-sm">
-              Our AI will automatically detect the task title, priority, and due date from your input.
+              Our AI will automatically detect task titles, priorities, and due dates from your input.
             </p>
           </div>
         )}
@@ -317,25 +338,83 @@ export default function CreateTaskPage() {
         )}
 
         {mode === 'review' && (
-          <div className="mt-8 flex justify-end gap-4">
-            <button
-              onClick={() => {
-                setMode('select');
-                setTextInput('');
-                setAudioBlob(null);
-                setParsedTasks([]);
-              }}
-              className="px-4 py-2 bg-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-600"
-            >
-              Start Over
-            </button>
-            <button
-              onClick={handleSaveTasks}
-              disabled={isProcessing || parsedTasks.length === 0}
-              className="submit-button px-4 py-2 rounded-lg disabled:opacity-50"
-            >
-              {isProcessing ? 'Saving...' : 'Save Tasks'}
-            </button>
+          <div>
+            <h2 className="text-xl text-zinc-200 mb-4">Review Tasks</h2>
+            <div className="bg-zinc-800/30 rounded-lg overflow-hidden">
+              <div className="divide-y divide-zinc-700/50">
+                {parsedTasks.map((task, index) => (
+                  <div key={task.id} className="p-3 hover:bg-zinc-700/20 transition-colors">
+                    <div className="flex items-center gap-3 mb-2">
+                      <input
+                        type="text"
+                        value={task.title}
+                        onChange={(e) => handleTaskUpdate(index, 'title', e.target.value)}
+                        className="flex-1 bg-zinc-800/30 border border-zinc-700 rounded px-2 py-1 text-white text-sm font-medium"
+                        placeholder="Task title"
+                      />
+                    </div>
+                    <div className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-6">
+                        <input
+                          type="text"
+                          value={task.notes}
+                          onChange={(e) => handleTaskUpdate(index, 'notes', e.target.value)}
+                          className="w-full bg-zinc-800/30 border border-zinc-700 rounded px-2 py-1 text-white text-sm"
+                          placeholder="Add notes..."
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <select
+                          value={task.priority}
+                          onChange={(e) => handleTaskUpdate(index, 'priority', e.target.value)}
+                          className="w-full bg-zinc-800/30 border border-zinc-700 rounded px-2 py-1 text-white text-sm"
+                        >
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="date"
+                          value={task.dueDate || ''}
+                          onChange={(e) => handleTaskUpdate(index, 'dueDate', e.target.value)}
+                          className="w-full bg-zinc-800/30 border border-zinc-700 rounded px-2 py-1 text-white text-sm"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="time"
+                          value={task.dueTime || ''}
+                          onChange={(e) => handleTaskUpdate(index, 'dueTime', e.target.value)}
+                          className="w-full bg-zinc-800/30 border border-zinc-700 rounded px-2 py-1 text-white text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-4">
+              <button
+                onClick={() => {
+                  setMode('select');
+                  setTextInput('');
+                  setAudioBlob(null);
+                  setParsedTasks([]);
+                }}
+                className="px-4 py-2 bg-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-600 text-sm"
+              >
+                Start Over
+              </button>
+              <button
+                onClick={handleSaveTasks}
+                disabled={isProcessing || parsedTasks.length === 0}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 text-sm"
+              >
+                {isProcessing ? 'Saving...' : 'Save Tasks'}
+              </button>
+            </div>
           </div>
         )}
       </div>

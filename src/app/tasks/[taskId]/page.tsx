@@ -20,6 +20,14 @@ interface Task {
     dueTime?: string;
     createdAt: string;
   }[];
+  attachments?: {
+    _id: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+    fileUrl: string;
+    uploadedAt: string;
+  }[];
 }
 
 export default function TaskDetailPage() {
@@ -310,6 +318,77 @@ export default function TaskDetailPage() {
       .join(' ');
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // Get pre-signed URL
+      const response = await fetch(`/api/tasks/${task._id}/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to get upload URL');
+      const { uploadUrl, uploadFields, attachment } = await response.json();
+
+      // Create form data for S3 upload
+      const formData = new FormData();
+      Object.entries(uploadFields).forEach(([key, value]) => {
+        formData.append(key, value as string);
+      });
+      formData.append('Content-Type', file.type);
+      formData.append('file', file);
+
+      // Upload to S3
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) throw new Error('Failed to upload file');
+
+      // Update local state
+      setTask(prev => ({
+        ...prev,
+        attachments: [...(prev.attachments || []), attachment],
+      }));
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Failed to upload file. Please try again.');
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    try {
+      const response = await fetch(`/api/tasks/${task._id}/upload`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attachmentId }),
+      });
+
+      if (!response.ok) throw new Error('Failed to delete attachment');
+      const updatedTask = await response.json();
+      setTask(updatedTask);
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
+      alert('Failed to delete attachment. Please try again.');
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  };
+
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -526,22 +605,59 @@ export default function TaskDetailPage() {
             
             <div className="space-y-4">
               {/* File Upload Button */}
-              <div className="flex justify-center">
-                <label className="cursor-pointer group">
-                  <div className="flex items-center gap-2 px-4 py-3 bg-zinc-800/50 rounded-lg hover:bg-zinc-800/70 transition-colors">
-                    <svg className="w-5 h-5 text-zinc-400 group-hover:text-emerald-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span className="text-zinc-400 group-hover:text-emerald-400 transition-colors">Add Attachment</span>
-                  </div>
-                  <input type="file" className="hidden" />
-                </label>
-              </div>
+              <label className="flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-md transition-all duration-200 transform hover:scale-105 shadow-lg cursor-pointer">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="text-sm font-medium">Upload File</span>
+                <input
+                  type="file"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  accept="*/*"
+                />
+              </label>
               
               {/* Empty State */}
-              <div className="text-center py-8">
-                <p className="text-zinc-500 text-sm">No attachments yet</p>
-              </div>
+              {task.attachments?.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-zinc-500 text-sm">No attachments yet</p>
+                </div>
+              )}
+              {/* File List */}
+              {task.attachments?.map((attachment: any) => (
+                <div
+                  key={attachment._id}
+                  className="flex items-center justify-between p-3 bg-zinc-800/30 rounded-md group"
+                >
+                  <div className="flex items-center gap-3">
+                    <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                    <div>
+                      <a 
+                        href={attachment.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        {attachment.fileName}
+                      </a>
+                      <p className="text-xs text-zinc-500">
+                        {formatFileSize(attachment.fileSize)} • {new Date(attachment.uploadedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteAttachment(attachment._id)}
+                    className="p-1.5 text-zinc-400 hover:text-red-400 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
